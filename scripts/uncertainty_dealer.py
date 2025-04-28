@@ -14,9 +14,9 @@ class UncertaintyDealer:
 
         # Publishers and Subscribers
         self.pose_pub = rospy.Publisher('/uncertainty_dealer/target_pose', Pose, queue_size=10)
-        self.unc_1_pub = rospy.Publisher('/hydrone_aerial_underwater1/uncertainty_reset', Pose, queue_size=10)
-        self.unc_2_pub = rospy.Publisher('/hydrone_aerial_underwater2/uncertainty_reset', Pose, queue_size=10)
-        self.unc_3_pub = rospy.Publisher('/hydrone_aerial_underwater3/uncertainty_reset', Pose, queue_size=10)
+        self.unc_1_pub = rospy.Publisher('/hydrone_aerial_underwater1/uncertainty_reset', Bool, queue_size=10)
+        self.unc_2_pub = rospy.Publisher('/hydrone_aerial_underwater2/uncertainty_reset', Bool, queue_size=10)
+        self.unc_3_pub = rospy.Publisher('/hydrone_aerial_underwater3/uncertainty_reset', Bool, queue_size=10)
 
         rospy.Subscriber('/uncertainty_dealer/uncertainty_set', Bool, self.uncertainty_set)
         rospy.Subscriber('/hydrone_aerial_underwater3/uncertainty', Float64, self.third_callback)
