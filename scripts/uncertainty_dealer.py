@@ -14,6 +14,11 @@ class UncertaintyDealer:
 
         # Publishers and Subscribers
         self.pose_pub = rospy.Publisher('/uncertainty_dealer/target_pose', Pose, queue_size=10)
+        self.unc_1_pub = rospy.Publisher('/hydrone_aerial_underwater1/uncertainty_reset', Pose, queue_size=10)
+        self.unc_2_pub = rospy.Publisher('/hydrone_aerial_underwater2/uncertainty_reset', Pose, queue_size=10)
+        self.unc_3_pub = rospy.Publisher('/hydrone_aerial_underwater3/uncertainty_reset', Pose, queue_size=10)
+
+        rospy.Subscriber('/uncertainty_dealer/uncertainty_set', Bool, self.uncertainty_set)
         rospy.Subscriber('/hydrone_aerial_underwater3/uncertainty', Float64, self.third_callback)
         rospy.Subscriber('/hydrone_aerial_underwater2/uncertainty', Float64, self.second_callback)
         rospy.Subscriber('/hydrone_aerial_underwater1/uncertainty', Float64, self.first_callback)
@@ -28,11 +33,21 @@ class UncertaintyDealer:
         self.uncertainty_second = 0
         self.uncertainty_third = 0
 
+        self.flag = -1
+
         self.first_pose = Pose()
         self.second_pose = Pose()
         self.first_pose = Pose()
 
         rospy.loginfo("Uncertainty Dealer Initialized.")
+
+    def uncertainty_set(self, msg):
+        if self.flag == 1:
+            self.unc_1_pub.publish(True)
+        if self.flag == 2:
+            self.unc_2_pub.publish(True)
+        if self.flag == 3:
+            self.unc_3_pub.publish(True)
 
     def first_callback(self, msg):
         self.uncertainty_first = msg.data
@@ -57,16 +72,19 @@ class UncertaintyDealer:
         if self.uncertainty_first > self.uncertainty_second:
             if self.uncertainty_first > self.uncertainty_third:
                 self.pose_pub.publish(self.first_pose)
+                self.flag = 1
                 rospy.loginfo("Target pose first")
 
         if self.uncertainty_second > self.uncertainty_first:
             if self.uncertainty_second > self.uncertainty_third:
                 self.pose_pub.publish(self.second_pose)
+                self.flag = 2
                 rospy.loginfo("Target pose second")
 
         if self.uncertainty_third > self.uncertainty_first:
             if self.uncertainty_third > self.uncertainty_second:
                 self.pose_pub.publish(self.second_pose)
+                self.flag = 3
                 rospy.loginfo("Target pose third")
 
 if __name__ == '__main__':
