@@ -1,6 +1,6 @@
 <!-- Spawns the hydrone vehicle in the simulation -->
 <launch>
-  <node name="wanderers_infinity" pkg="wanderers" type="wanderers_infinity.py" />
+  <!-- <node name="wanderers_infinity" pkg="wanderers" type="wanderers_infinity.py" /> -->
   <node name="wanderers_lissajous" pkg="wanderers" type="wanderers_lissajous.py" />
-  <node name="wanderers_random" pkg="wanderers" type="wanderers_random.py" />
+  <!-- <node name="wanderers_random" pkg="wanderers" type="wanderers_random.py" /> -->
 </launch>
