@@ -2,7 +2,7 @@
 import rospy
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Float64
 import random
 import math
 import tf
@@ -22,7 +22,8 @@ class InfinityPathFollower:
         # Publishers and Subscribers
         self.cmd_pub = rospy.Publisher('/hydrone_aerial_underwater1/cmd_vel', Twist, queue_size=10)
         rospy.Subscriber('/hydrone_aerial_underwater1/odometry_sensor1/odometry', Odometry, self.odom_callback)
-        rospy.Subscriber('/hydrone_aerial_underwater1/uncertainty', Bool, self.update_uncertainty)
+        rospy.Subscriber('/hydrone_aerial_underwater1/uncertainty_reset', Bool, self.update_uncertainty)
+        self.unc_pub = rospy.Publisher('/hydrone_aerial_underwater1/uncertainty', Float64, queue_size=10)
 
         # Timer for control loop
         self.control_timer = rospy.Timer(rospy.Duration(0.05), self.controller_callback)
@@ -50,7 +51,7 @@ class InfinityPathFollower:
 
         rospy.loginfo("InfinityPathFollower (ROS1) initialized.")
 
-        self.uncertainty = 1.0
+        self.uncertainty = np.random.uniform(0.5, 5)
 
     def odom_callback(self, msg):
         self.x = msg.pose.pose.position.x
@@ -107,6 +108,8 @@ class InfinityPathFollower:
         rospy.loginfo(f"[∞] Waypoint {self.current_index}/{self.num_points} | x={self.x:.2f} y={self.y:.2f} | alpha={alpha:.2f}")
 
         self.uncertainty = self.uncertainty + 0.01
+
+        self.unc_pub.publish(self.uncertainty)
 
         rospy.loginfo("Uncertainty" + str(self.uncertainty))
 

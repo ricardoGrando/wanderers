@@ -2,7 +2,7 @@
 import rospy
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Float64
 import random
 import math
 import tf
@@ -22,7 +22,8 @@ class LissajousFollower:
         # Publishers and Subscribers
         self.cmd_pub = rospy.Publisher('/hydrone_aerial_underwater3/cmd_vel', Twist, queue_size=10)
         rospy.Subscriber('/hydrone_aerial_underwater3/odometry_sensor1/odometry', Odometry, self.odom_callback)
-        rospy.Subscriber('/hydrone_aerial_underwater3/uncertainty', Bool, self.update_uncertainty)
+        rospy.Subscriber('/hydrone_aerial_underwater3/uncertainty_reset', Bool, self.update_uncertainty)
+        self.unc_pub = rospy.Publisher('/hydrone_aerial_underwater3/uncertainty', Float64, queue_size=10)
 
         self.control_timer = rospy.Timer(rospy.Duration(0.05), self.controller_callback)
 
@@ -52,7 +53,7 @@ class LissajousFollower:
 
         rospy.loginfo("Lissajous Follower (ROS1) Initialized.")
 
-        self.uncertainty = 1.0
+        self.uncertainty = np.random.uniform(0.5, 5)
 
     def odom_callback(self, msg):
         self.x = msg.pose.pose.position.x
@@ -105,6 +106,8 @@ class LissajousFollower:
         rospy.loginfo(f"[Lissajous] Index {self.current_waypoint_index} | x={self.x:.2f}, y={self.y:.2f} | alpha={alpha:.2f}")
 
         self.uncertainty = self.uncertainty + 0.01
+
+        self.unc_pub.publish(self.uncertainty)
 
         rospy.loginfo("Uncertainty" + str(self.uncertainty))
 
