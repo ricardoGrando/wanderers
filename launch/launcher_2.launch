@@ -1,0 +1,7 @@
+<!-- Spawns the hydrone vehicle in the simulation -->
+<launch>
+  <node name="wanderers_circle1" pkg="wanderers" type="wanderers_circle_1.py" />
+  <node name="wanderers_circle2" pkg="wanderers" type="wanderers_circle_2.py" />
+  <node name="wanderers_line" pkg="wanderers" type="wanderers_line.py" />
+  <node name="uncertainty_dealer" pkg="wanderers" type="uncertainty_dealer.py" />
+</launch>
