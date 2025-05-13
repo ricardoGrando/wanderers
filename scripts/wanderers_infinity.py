@@ -64,7 +64,7 @@ class InfinityPathFollower:
         _, _, self.theta = tf.transformations.euler_from_quaternion(orientation_list)
 
     def update_uncertainty(self, msg):
-        self.uncertainty = 0.5*self.uncertainty
+        self.uncertainty = 0.1
 
         rospy.loginfo("Uncertainty updated" + str(self.uncertainty))
 
