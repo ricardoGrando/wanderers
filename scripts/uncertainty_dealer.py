@@ -62,7 +62,7 @@ class UncertaintyDealer:
 
         self.first_pose = Pose()
         self.second_pose = Pose()
-        self.first_pose = Pose()
+        self.third_pose = Pose()
 
         self.last_update_time = rospy.Time(0)  # initialize to 0
 
