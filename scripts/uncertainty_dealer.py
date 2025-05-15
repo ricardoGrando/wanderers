@@ -7,6 +7,31 @@ import random
 import math
 import tf
 import numpy as np
+import csv
+import os
+from datetime import datetime
+
+class CSVLogger:
+    def __init__(self, directory="/home/ricardo/hydrone_ws"):
+        # Create directory if it doesn't exist
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        # Generate filename with start time
+        start_time_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        self.filename = os.path.join(directory, f"log_{start_time_str}.csv")
+
+        # Open the file and prepare the CSV writer
+        self.file = open(self.filename, mode='w', newline='')
+        self.writer = csv.writer(self.file)
+
+    def log(self, value1, value2, value3):
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.writer.writerow([value1, value2, value3])
+        self.file.flush()  # Ensure data is written to disk
+
+    def close(self):
+        self.file.close()
 
 class UncertaintyDealer:
     def __init__(self):
@@ -39,15 +64,24 @@ class UncertaintyDealer:
         self.second_pose = Pose()
         self.first_pose = Pose()
 
+        self.last_update_time = rospy.Time(0)  # initialize to 0
+
+        self.logger = CSVLogger()
+
         rospy.loginfo("Uncertainty Dealer Initialized.")
 
     def uncertainty_set(self, msg):
-        if self.flag == 1:
-            self.unc_1_pub.publish(True)
-        if self.flag == 2:
-            self.unc_2_pub.publish(True)
-        if self.flag == 3:
-            self.unc_3_pub.publish(True)
+        current_time = rospy.Time.now()
+        if (current_time - self.last_update_time).to_sec() >= 5.0:
+            if self.flag == 1:
+                self.unc_1_pub.publish(True)
+            if self.flag == 2:
+                self.unc_2_pub.publish(True)
+            if self.flag == 3:
+                self.unc_3_pub.publish(True)
+            self.last_update_time = current_time
+        else:
+            rospy.loginfo("Update skipped: waiting for 5-second interval")
 
     def first_callback(self, msg):
         self.uncertainty_first = msg.data
@@ -83,9 +117,11 @@ class UncertaintyDealer:
 
         if self.uncertainty_third > self.uncertainty_first:
             if self.uncertainty_third > self.uncertainty_second:
-                self.pose_pub.publish(self.second_pose)
+                self.pose_pub.publish(self.third_pose)
                 self.flag = 3
                 rospy.loginfo("Target pose third")
+
+        self.logger.log(self.uncertainty_first, self.uncertainty_second, self.uncertainty_third)
 
 if __name__ == '__main__':
     try:
