@@ -144,7 +144,9 @@ class BUG2:
         self.target_x = 0
         self.target_y = 0
         self.target_z = 0
-        self.heading = [0,0]    
+        self.heading = [0,0]  
+
+        self.underwater = False  
 
         rospy.loginfo("BUG (ROS1) initialized.")
 
@@ -186,6 +188,11 @@ class BUG2:
             twist.linear.z = 0.25
         else: 
             twist.linear.z = -0.25
+
+        if self.underwater:
+            twist.linear.z = -0.105
+        else:
+            twist.linear.z = 0
 
         if abs(self.heading[0]) < 0.15:
             twist.linear.x = 0.25

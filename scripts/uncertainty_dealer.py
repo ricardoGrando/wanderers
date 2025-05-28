@@ -25,10 +25,16 @@ class CSVLogger:
         self.file = open(self.filename, mode='w', newline='')
         self.writer = csv.writer(self.file)
 
-    def log(self, value1, value2, value3):
-        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        self.writer.writerow([value1, value2, value3])
-        self.file.flush()  # Ensure data is written to disk
+    def log(self, value1, value2, value3, done):
+        if not done:
+            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.writer.writerow([value1, value2, value3])
+            self.file.flush()  # Ensure data is written to disk
+
+    def log_time(self, value, done):   
+        if not done:     
+            self.writer.writerow([value])
+            self.file.flush()  # Ensure data is written to disk
 
     def close(self):
         self.file.close()
@@ -60,6 +66,8 @@ class UncertaintyDealer:
 
         self.flag = -1
 
+        self.done = False
+
         self.first_pose = Pose()
         self.second_pose = Pose()
         self.third_pose = Pose()
@@ -67,6 +75,8 @@ class UncertaintyDealer:
         self.last_update_time = rospy.Time(0)  # initialize to 0
 
         self.logger = CSVLogger()
+
+        self.counter = 0
 
         rospy.loginfo("Uncertainty Dealer Initialized.")
 
@@ -79,7 +89,11 @@ class UncertaintyDealer:
                 self.unc_2_pub.publish(True)
             if self.flag == 3:
                 self.unc_3_pub.publish(True)
-            self.last_update_time = current_time
+            self.logger.log_time((current_time - self.last_update_time).to_sec(), self.done)
+            self.counter += 1
+            if self.counter == 99:
+                self.done = True
+            self.last_update_time = current_time            
         else:
             rospy.loginfo("Update skipped: waiting for 5-second interval")
 
@@ -121,7 +135,7 @@ class UncertaintyDealer:
                 self.flag = 3
                 rospy.loginfo("Target pose third")
 
-        self.logger.log(self.uncertainty_first, self.uncertainty_second, self.uncertainty_third)
+        self.logger.log(self.uncertainty_first, self.uncertainty_second, self.uncertainty_third, self.done)
 
 if __name__ == '__main__':
     try:
