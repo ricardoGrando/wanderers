@@ -4,5 +4,5 @@
   <node name="wanderers_lissajous" pkg="wanderers" type="wanderers_lissajous.py" />
   <node name="wanderers_random" pkg="wanderers" type="wanderers_random.py" />
   <node name="uncertainty_dealer" pkg="wanderers" type="uncertainty_dealer.py" />
-  <node name="uncertainty_bug" pkg="wanderers" type="wanderers_bug.py" />
+  <!-- <node name="uncertainty_bug" pkg="wanderers" type="wanderers_bug.py" /> -->
 </launch>

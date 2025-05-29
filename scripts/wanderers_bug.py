@@ -2,11 +2,12 @@
 import rospy
 from geometry_msgs.msg import Twist, Pose, Point, Quaternion
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Bool, Float64
+from std_msgs.msg import Bool, Float64, Float32
 import random
 import math
 import tf
 import numpy as np
+from sensor_msgs.msg import LaserScan
 
 # epsilon for testing whether a number is close to zero
 _EPS = np.finfo(float).eps * 4.0
@@ -133,6 +134,8 @@ class BUG2:
         self.unc_reset = rospy.Publisher('/uncertainty_dealer/uncertainty_set', Bool, queue_size=10)
         rospy.Subscriber('/uncertainty_dealer/target_pose', Pose, self.target_pose_callback)
 
+        rospy.Subscriber('/hydrone_aerial_underwater0/scan', LaserScan, self.laser_callback)
+
         # Timer for control loop
         self.control_timer = rospy.Timer(rospy.Duration(0.05), self.controller_callback)
 
@@ -147,6 +150,12 @@ class BUG2:
         self.heading = [0,0]  
 
         self.underwater = False  
+
+        self.lidar_ranges = []
+
+        self.state = "GO_TO_GOAL"
+        self.start_pos = Point(self.position.x, self.position.y, self.position.z)
+        self.hit_point = None
 
         rospy.loginfo("BUG (ROS1) initialized.")
 
@@ -174,6 +183,28 @@ class BUG2:
 
         self.heading = heading
 
+    def laser_callback(self, msg):
+        self.lidar_ranges = msg.ranges
+        # rospy.loginfo(len(self.lidar_ranges))
+
+    def is_on_mline(self, tolerance=0.1):
+        # Vector from start to goal
+        dx_goal = self.target_pos.x - self.start_pos.x
+        dy_goal = self.target_pos.y - self.start_pos.y
+
+        # Vector from current to start
+        dx_curr = self.position.x - self.start_pos.x
+        dy_curr = self.position.y - self.start_pos.y
+
+        # Cross product should be ~0 if on line
+        cross = dx_goal * dy_curr - dy_goal * dx_curr
+        return abs(cross) < tolerance
+
+    def is_closer_to_goal_than_hit(self):
+        curr_dist = math.hypot(self.target_pos.x - self.position.x, self.target_pos.y - self.position.y)
+        hit_dist = math.hypot(self.target_pos.x - self.hit_point[0], self.target_pos.y - self.hit_point[1])
+        return curr_dist < hit_dist
+
     def controller_callback(self, event):
         # Publish command
         twist = Twist()
@@ -181,35 +212,86 @@ class BUG2:
         # print(self.position)
         # print(self.target_pos)
 
-        # Heading control
-        yaw_error = self.heading[0]  # Difference in yaw (target - current)
+        # # Heading control
+        # yaw_error = self.heading[0]  # Difference in yaw (target - current)
 
-        if self.position.z < self.height:
-            twist.linear.z = 0.25
-        else: 
-            twist.linear.z = -0.25
+        # if self.position.z < self.height:
+        #     twist.linear.z = 0.25
+        # else: 
+        #     twist.linear.z = -0.25
 
-        if self.underwater:
-            twist.linear.z = -0.105
-        else:
-            twist.linear.z = 0
+        # if self.underwater:
+        #     twist.linear.z = -0.105
+        # else:
+        #     twist.linear.z = 0
 
-        if abs(self.heading[0]) < 0.15:
-            twist.linear.x = 0.25
-            twist.angular.z = 0.0
-        else:            
-            twist.angular.z = 0.25 if yaw_error > 0 else -0.25
-         
-        self.cmd_pub.publish(twist)
+        # if abs(self.heading[0]) < 0.15:
+        #     twist.linear.x = 0.25
+        #     twist.angular.z = 0.0
+        # else:            
+        #     twist.angular.z = 0.25 if yaw_error > 0 else -0.25
+                 
 
-        distance = math.sqrt((self.target_pos.x - self.position.x)**2 + (self.target_pos.y - self.position.y)**2 + (self.target_pos.z - self.position.z)**2)
+        distance = math.sqrt((self.target_pos.x - self.position.x)**2 + (self.target_pos.y - self.position.y)**2)
 
-        if distance < 0.85:
-            self.unc_reset.publish(True)
-            rospy.loginfo("Uncerttain")
+        front_range = 10  # center range for ~5°
+        min_front_distance = 0
+        yaw_error = self.heading[0]
 
-        rospy.loginfo("Distance" + str(distance) + ", " + str(self.heading[0]))
+        try:
+            # Check if path is blocked in front (e.g., within ±10°)
+            front_range = self.lidar_ranges[360:720]  # center range for ~5°
+            min_front_distance = min(front_range)
+        
+            obstacle_threshold = 0.8  # meters
 
+            if self.state == "GO_TO_GOAL":
+                if min_front_distance < obstacle_threshold:
+                    # Hit an obstacle, save hit point
+                    self.state = "FOLLOW_OBSTACLE"
+                    self.hit_point = (self.position.x, self.position.y)
+                    rospy.loginfo("Switched to FOLLOW_OBSTACLE")
+                else:
+                    # Move toward goal
+                    if abs(yaw_error) < 0.15:
+                        twist.linear.x = 0.3
+                        twist.angular.z = 0.0
+                    else:
+                        twist.linear.x = 0.0
+                        twist.angular.z = 0.3 if yaw_error > 0 else -0.3
+
+            elif self.state == "FOLLOW_OBSTACLE":
+                # Basic left wall-following: check left side (270° to 180°)
+                left_range = self.lidar_ranges[800:880]
+                min_left_distance = min(left_range)
+
+                if min_front_distance < obstacle_threshold:
+                    # Still obstacle ahead: turn right
+                    twist.linear.x = 0.0
+                    twist.angular.z = -0.4
+                elif min_left_distance > obstacle_threshold:
+                    # Free on the left: turn slightly left and move
+                    twist.linear.x = 0.1
+                    twist.angular.z = 0.3
+                else:
+                    # Follow wall
+                    twist.linear.x = 0.2
+                    twist.angular.z = 0.0
+
+                # Check if back on M-line and closer to goal than hit point
+                if self.is_on_mline() and self.is_closer_to_goal_than_hit():
+                    self.state = "GO_TO_GOAL"
+                    rospy.loginfo("Back to GO_TO_GOAL")
+
+            self.cmd_pub.publish(twist)
+
+            if distance < 0.85:
+                self.unc_reset.publish(True)
+                rospy.loginfo("Uncerttain")
+
+            rospy.loginfo("Distance" + str(distance) + ", " + str(self.heading[0]))
+        except:
+            rospy.loginfo("No lidar samples")
 
 if __name__ == '__main__':
     try:
