@@ -126,7 +126,7 @@ class BUG2:
 
         self.offset_x = 2.5
         self.offset_y = 2.5
-        self.height = 3.5
+        self.height = -0.5
 
         # Publishers and Subscribers
         self.cmd_pub = rospy.Publisher('/hydrone_aerial_underwater0/cmd_vel', Twist, queue_size=10)
@@ -215,10 +215,12 @@ class BUG2:
         # # Heading control
         # yaw_error = self.heading[0]  # Difference in yaw (target - current)
 
-        if self.position.z < self.height:
-            twist.linear.z = 0.25
-        else: 
-            twist.linear.z = -0.25
+        if self.position.z >= self.height + 0.05:
+            twist.linear.z = -0.15
+        elif self.position.z <= self.height - 0.05:
+            twist.linear.z = 0.05
+        else:
+            twist.linear.z = -0.11
 
         # if self.underwater:
         #     twist.linear.z = -0.105
